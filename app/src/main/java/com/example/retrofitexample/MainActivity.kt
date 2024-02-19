@@ -12,6 +12,11 @@ import com.example.retrofitexample.data.api.ApiServiceClient
 import com.example.retrofitexample.data.models.Comment
 import com.example.retrofitexample.data.models.Post
 import com.example.retrofitexample.ui.adapters.CommentAdapter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.Dispatcher
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -38,27 +43,20 @@ class MainActivity : AppCompatActivity() {
                 .trim()
                 .toInt()
 
-            val callComments = apiService.getCommentsByPostId(postId)
-            callComments.enqueue(object : Callback<List<Comment>> {
-                override fun onResponse(call: Call<List<Comment>>, response: Response<List<Comment>>) {
-                    if(response.isSuccessful) {
-                        val comments = response.body().orEmpty()
 
-                        val adapter = CommentAdapter(comments)
+            CoroutineScope(Dispatchers.IO).launch {
+                val commentsResponse = apiService.getCommentsByPostId(postId)
+                val comments = commentsResponse.body().orEmpty()
 
-                        mCommentList.adapter = adapter
-                        mCommentList.layoutManager = LinearLayoutManager(baseContext)
+                val adapter = CommentAdapter(comments)
 
-                        adapter.notifyDataSetChanged()
+                withContext(Dispatchers.Main) {
+                    mCommentList.adapter = adapter
+                    mCommentList.layoutManager = LinearLayoutManager(baseContext)
+                    adapter.notifyDataSetChanged()
 
-                    }
                 }
-
-                override fun onFailure(call: Call<List<Comment>>, t: Throwable) {
-                    Log.e("App", "Ocorrreu uma falha na execução")
-                }
-            })
-
+            }
         }
 
 
@@ -67,21 +65,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        val callGetPosts = apiService.getPosts()
-        callGetPosts.enqueue(object : Callback<List<Post>> {
-            override fun onResponse(call: Call<List<Post>>, response: Response<List<Post>>) {
-                if(response.isSuccessful) {
-                    val posts = response.body()
-                    val postTitles = posts?.map{ "${it.id} -- ${it.title}"}?.toList().orEmpty()
-                    val adapter = ArrayAdapter(baseContext, android.R.layout.simple_list_item_1, postTitles)
-                    mMenuSelection.setAdapter(adapter)
-                }
-            }
 
-            override fun onFailure(call: Call<List<Post>>, t: Throwable) {
-                Log.e("App", "Ocorreu um erro na requisicao")
+        CoroutineScope(Dispatchers.IO).launch {
+            val postResponse = apiService.getPosts()
+            val posts = postResponse.body()
+            val postTitles = posts?.map{ "${it.id} -- ${it.title}"}?.toList().orEmpty()
+            val adapter = ArrayAdapter(baseContext, android.R.layout.simple_list_item_1, postTitles)
+            withContext(Dispatchers.Main) {
+                mMenuSelection.setAdapter(adapter)
             }
-        })
-
+        }
     }
 }
