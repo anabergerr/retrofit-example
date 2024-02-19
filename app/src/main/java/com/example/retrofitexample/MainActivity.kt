@@ -5,11 +5,13 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.retrofitexample.data.api.ApiService
 import com.example.retrofitexample.data.api.ApiServiceClient
 import com.example.retrofitexample.data.models.Comment
 import com.example.retrofitexample.data.models.Post
+import com.example.retrofitexample.ui.adapters.CommentAdapter
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -27,25 +29,39 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val callComments = apiService.getCommentsByPostId(1)
 
+        mMenuSelection.setOnItemClickListener { parent, view, position, id ->
 
+            val postTitle = parent.getItemAtPosition(position) as String
+            val postId = postTitle.split("-")
+                .first()
+                .trim()
+                .toInt()
 
+            val callComments = apiService.getCommentsByPostId(postId)
+            callComments.enqueue(object : Callback<List<Comment>> {
+                override fun onResponse(call: Call<List<Comment>>, response: Response<List<Comment>>) {
+                    if(response.isSuccessful) {
+                        val comments = response.body().orEmpty()
 
-        callComments.enqueue(object : Callback<List<Comment>>{
-            override fun onResponse(call: Call<List<Comment>>, response: Response<List<Comment>>) {
-                if(response.isSuccessful) {
-                    val comments = response.body()
-                    comments?.forEach {
-                        Log.i("App", it.toString())
+                        val adapter = CommentAdapter(comments)
+
+                        mCommentList.adapter = adapter
+                        mCommentList.layoutManager = LinearLayoutManager(baseContext)
+
+                        adapter.notifyDataSetChanged()
+
                     }
                 }
-            }
 
-            override fun onFailure(call: Call<List<Comment>>, t: Throwable) {
-                Log.e("App", "Ocorrreu uma falha na execução")
-            }
-        })
+                override fun onFailure(call: Call<List<Comment>>, t: Throwable) {
+                    Log.e("App", "Ocorrreu uma falha na execução")
+                }
+            })
+
+        }
+
+
     }
 
 
